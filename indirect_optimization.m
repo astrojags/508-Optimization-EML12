@@ -82,7 +82,7 @@ function traj_l1_indirect_nomanifold()
     else
         fprintf('No solution found after all continuation attempts.\n');
     end
-    
+
     rho = 0.9 * rho;
     if rho < rhoMin
         break;
@@ -499,3 +499,6 @@ function plot_results(t, X, u, delta, switching, xf_target, mu)
     ylabel('J');
     title('Performance Index (Fuel Consumption)');
 end
+
+
+% dfjbhviuofwejdheufhrofewjj
