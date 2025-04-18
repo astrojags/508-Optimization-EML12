@@ -27,15 +27,27 @@ function cr3bp_indirect_optimization()
     geo_vy = geo_radius * (1 - sqrt((1-mu) / geo_radius^3));  % Corrected for rotating frame
     geo_vz = 0;
     
-    % Initial and target states
-    x0 = [geo_x, geo_y, geo_z, geo_vx, geo_vy, geo_vz];
-    xf = [L1_x, L1_y, L1_z, L1_vx, L1_vy, L1_vz];
+
+    % propogating mu for initial guesses
+    mu_init = 0
+    mu = 0.01215;  % Mass ratio for Earth-Moon system
+
+    for mu_propogate < mu:
+
+        % Initial and target states
+        x0 = [geo_x, geo_y, geo_z, geo_vx, geo_vy, geo_vz];
+        xf = [L1_x, L1_y, L1_z, L1_vx, L1_vy, L1_vz];
     
+        % Initial costate guess
+        lam_init_guess = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
+
+
+        
     % Time of flight (normalized units)
     tf = 3.0;  % Adjust as needed
     
-    % Initial costate guess
-    lam_init_guess = [0.1, 0.1, 0.1, 0.1, 0.1, 0.1];
+
+        
     
     % Optimize
     disp('Starting optimization...');
@@ -174,7 +186,7 @@ function plot_trajectory(sol, mu, title_str)
     z = sol.y(3, :);
     
     % Plot trajectory
-    plot3(ax, x, y, z, 'b-', 'LineWidth', 2);
+    plot3(ax, x, y, z, 'b-', 'LineWidth', 2 );
     hold on;
     
     % Plot primaries
