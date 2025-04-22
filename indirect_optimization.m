@@ -2,12 +2,12 @@ function traj_l1_indirect_nomanifold()
     % CR3BP trajectory optimization problem using indirect method with the manifold targeting
     
     % Problem parameters
-    mu = 0; % 0.012155; % Mass ratio of Moon to Earth+Moon system
+    mu = 0.012155; % 0.012155; % Mass ratio of Moon to Earth+Moon system
     T_max = 0.1;   % Maximum thrust [N]
     Isp = 3000; % Typical Specific Impulse [Isp]
     g0 = 9.80665; % Gravity [m/s^2]
     c = Isp * g0;  % Characteristic exhaust velocity (Isp*g0) [m/s]
-    m_0 = 1500;    % Initial mass [kg]
+    m_0 = 100;    % Initial mass [kg]
 
     %---------------------------------------------------------------------
     
@@ -37,57 +37,69 @@ function traj_l1_indirect_nomanifold()
     T_max_values = linspace(T_max*2, T_max, 5); % Start with higher thrust
     
     % Solve TPBVP using continuation
-    solution_found = false;
-    for i = 1:length(T_max_values)
-        curr_T_max = T_max_values(i);
+    % Define continuation on mu from 0 to Earth-Moon value
+    mu_values = linspace(0, 0.012155, 15);  % You can use more steps if needed
+
+    % Initial guess
+    lambda0_guess = [-0.01; -0.01; -0.01; -1; -1; -1; 0];
+
+    % Thrust continuation values (optional)
+    T_max_values = linspace(2*T_max, T_max, 5);
+
+    % Loop through increasing mu
+    for k = 1:length(mu_values)
+        mu_k = mu_values(k);
+        fprintf('\n===== Solving for mu = %.6f =====\n', mu_k);
+
+        solution_found = false;
+    
+        % Thrust continuation at each mu
+        for i = 1:length(T_max_values)
+            curr_T_max = T_max_values(i);
         
-        fprintf('Attempting solution with T_max = %.4f\n', curr_T_max);
-        
-        try
-            % Define options for fsolve
-            options = optimoptions('fsolve', 'Display', 'iter', 'MaxFunctionEvaluations', 5000, ...
-                'MaxIterations', 300, 'FunctionTolerance', 1e-6);
-            
-            % Solve the TPBVP
-            [lambda0_sol, fval, exitflag] = fsolve(@(lambda0) shooting_function(lambda0, x0, m_0, ...
-                xf_target, t0, tf, mu, curr_T_max, c, rho), lambda0_guess, options);
-            
-            if exitflag > 0 && norm(fval) < 1e-4
-                solution_found = true;
-                fprintf('Solution found with T_max = %.4f\n', curr_T_max);
-                
-                % Update guess for next iteration if needed
-                lambda0_guess = lambda0_sol;
-                break;
-            else
-                % Update guess for next iteration
-                lambda0_guess = lambda0_sol;
+            fprintf('  Attempting solution with T_max = %.4f\n', curr_T_max);
+
+            try
+                options = optimoptions('fsolve', ...
+                    'Display', 'iter', ...
+                    'MaxFunctionEvaluations', 5000, ...
+                    'MaxIterations', 300, ...
+                    'FunctionTolerance', 1e-6);
+
+                [lambda0_sol, fval, exitflag] = fsolve( ...
+                    @(lambda0) shooting_function(lambda0, x0, m_0, xf_target, ...
+                                                t0, tf, mu_k, curr_T_max, c, rho), ...
+                    lambda0_guess, options);
+
+                if exitflag > 0 && norm(fval) < 1e-4
+                    fprintf('Solution found with T_max = %.4f at mu = %.6f\n', curr_T_max, mu_k);
+                    lambda0_guess = lambda0_sol;  % Pass to next mu
+                    solution_found = true;
+                    break;
+                else
+                    fprintf('No convergence at this T_max. Trying next...\n');
+                    lambda0_guess = lambda0_sol;  % Still update for better guess
+                end
+
+            catch e
+                fprintf('Error: %s\n', e.message);
             end
-        catch e
-            fprintf('Error in solution attempt: %s\n', e.message);
-            % Continue to next iteration
+        end
+
+        if ~solution_found
+            fprintf('Stopping continuation. No solution found at mu = %.6f\n', mu_k);
+            return;
         end
     end
-    
-    if solution_found
-        % Compute final trajectory with solution
-        [t, x, u, delta, switching] = integrate_trajectory(x0, m_0, lambda0_sol, t0, tf, mu, T_max, c, rho);
-        
-        % Plot results
-        plot_results(t, x, u, delta, switching, xf_target, mu);
-        
-        % Calculate fuel consumption
-        fuel_consumed = m_0 - x(end,7);
-        fprintf('Fuel consumed: %.2f kg (%.2f%%)\n', fuel_consumed, 100*fuel_consumed/m_0);
-    else
-        fprintf('No solution found after all continuation attempts.\n');
-    end
 
-    rho = 0.9 * rho;
-    if rho < rhoMin
-        break;
-    end
-end
+% Final trajectory if last mu converged
+fprintf('\n Final mu = %.6f succeeded. Plotting trajectory...\n', mu_k);
+[t, x, u, delta, switching] = integrate_trajectory(x0, m_0, lambda0_sol, t0, tf, mu_k, T_max, c, rho);
+plot_results(t, x, u, delta, switching, xf_target, mu_k);
+
+fuel_consumed = m_0 - x(end,7);
+fprintf('Fuel consumed: %.2f kg (%.2f%%)\n', fuel_consumed, 100*fuel_consumed/m_0);
+
 
 function error = shooting_function(lambda0, x0, m0, xf_target, t0, tf, mu, T_max, c, rho)
     % Shooting function for solving the TPBVP
@@ -254,7 +266,7 @@ function [d2Udr2, dh_v_dr, dh_v_dv] = cr3bp_jacobians(r, v, mu)
     dh_v_dv(2,1) = -2; % derivative of -2*vx with respect to vx
 end
 
-function H = compute_hamiltonian(X, lambda_x, lambda_m, mu, T_max, c)
+function H = compute_hamiltonian(X, lambda_x, lambda_m, mu, T_max, c, rho)
     % Compute the Hamiltonian value according to Eq. 25
     
     r = X(1:3);
@@ -499,6 +511,6 @@ function plot_results(t, X, u, delta, switching, xf_target, mu)
     ylabel('J');
     title('Performance Index (Fuel Consumption)');
 end
-
+end % end of plot_results
 
 % dfjbhviuofwejdheufhrofewjj
