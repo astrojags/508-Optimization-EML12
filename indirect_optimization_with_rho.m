@@ -31,7 +31,9 @@ function traj_l1_indirect_nomanifold()
     xf_target = [L1_x, 0, 0, 0, 0, 0]';
     
     % Initial costate guess
-    lambda0_guess = [-0.1; -0.1; -0.1; -1.0; -1.0; -1.0; 0.1]; % Position, velocity, mass costates
+    v0 = x0(4:6);
+    lambda_v0 = -v0 / norm(v0);  % optimal thrust direction is anti-velocity
+    lambda0_guess = [0; 0; 0; lambda_v0; 0];  % position, velocity, mass
     
     % Continuation parameters
     T_max_values = linspace(T_max*2, T_max, 5); % Start with higher thrust
