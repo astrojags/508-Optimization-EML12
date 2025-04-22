@@ -16,7 +16,7 @@ function traj_l1_indirect_nomanifold()
     tf = 20; % Will be adjusted if time is free
     
     % GEO initial conditions in rotating frame (normalized)
-    a_GEO = 42164/384400; % GEO radius normalized by Earth-Moon distance
+    a_GEO = 52164/384400; % 42164/384400; % GEO radius normalized by Earth-Moon distance
     x0 = [(1-mu-a_GEO), 0, 0, 0, a_GEO, 0]'; % [x, y, z, vx, vy, vz]
     
     % L1 location (approximate)
@@ -85,7 +85,7 @@ function traj_l1_indirect_nomanifold()
 
     rho = 0.9 * rho;
     if rho < rhoMin
-        break;
+        return;
     end
 end
 
