@@ -7,21 +7,21 @@ function traj_l1_indirect_nomanifold()
     Isp = 3000; % Typical Specific Impulse [Isp]
     g0 = 9.80665; % Gravity [m/s^2]
     c = Isp * g0;  % Characteristic exhaust velocity (Isp*g0) [m/s]
-    m_0 = 1500;    % Initial mass [kg]
+    m_0 = 100; % 1500;    % Initial mass [kg]
 
     %---------------------------------------------------------------------
     
     % Initial and final times [normalized units]
     t0 = 0;
-    tf = 20; % Will be adjusted if time is free
+    tf = 10; % Will be adjusted if time is free
     
     % GEO initial conditions in rotating frame (normalized)
-    a_GEO = 52164/384400; % 42164/384400; % GEO radius normalized by Earth-Moon distance
+    a_GEO = 42164/384400; % GEO radius normalized by Earth-Moon distance
     x0 = [(1-mu-a_GEO), 0, 0, 0, a_GEO, 0]'; % [x, y, z, vx, vy, vz]
     
     % L1 location (approximate)
     gamma = (mu/3/(1-mu))^(1/3);
-    L1_x = 1 - mu - gamma;
+    L1_x = 52164/384400; % 1 - mu - gamma;
     
     % Defining rho
     rho = 1e-2; % Smoothing parameter for switching function 
@@ -81,15 +81,25 @@ function traj_l1_indirect_nomanifold()
         % Calculate fuel consumption
         fuel_consumed = m_0 - x(end,7);
         fprintf('Fuel consumed: %.2f kg (%.2f%%)\n', fuel_consumed, 100*fuel_consumed/m_0);
+        
     else
         fprintf('No solution found after all continuation attempts.\n');
     end
 
-    rho = 0.9 * rho;
-    if rho < rhoMin
-        return;
+    if ~solution_found || norm(x(end,1:6)' - xf_target) > 1e-3
+        rho = 0.5 * rho;
+        if rho >= rhoMin
+            fprintf('Retrying with smaller smoothing parameter rho = %.6f\n', rho);
+            traj_l1_indirect_nomanifold();
+        end
     end
 end
+
+   % rho = 0.9 * rho;
+   % if rho < rhoMin
+   %    return;
+   % end
+% end
 
 function error = shooting_function(lambda0, x0, m0, xf_target, t0, tf, mu, T_max, c, rho)
     % Shooting function for solving the TPBVP
@@ -374,7 +384,7 @@ function [value, isterminal, direction] = switching_event(t, z, mu, T_max, c, rh
     S = lambda_v_norm - (1 - lambda_m) * m / c;
     
     % Event occurs when switching function crosses zero
-    value = tanh(S / rho); % smoother zero crossing
+    value = S; % tanh(S / rho); % smoother zero crossing
     isterminal = 0;  % Don't terminate
     direction = 0;   % Detect both rising and falling crossings
 end
