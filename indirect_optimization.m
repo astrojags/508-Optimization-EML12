@@ -10,10 +10,10 @@ function traj_l1_indirect_nomanifold()
     m_0 = 100;    % Initial mass [kg]
 
     %---------------------------------------------------------------------
-    
+   
     % Initial and final times [normalized units]
     t0 = 0;
-    tf = 20; % Will be adjusted if time is free
+    tf = 5; % Will be adjusted if time is free
     
     % GEO initial conditions in rotating frame (normalized)
     a_GEO = 42164/384400; % GEO radius normalized by Earth-Moon distance
@@ -31,14 +31,16 @@ function traj_l1_indirect_nomanifold()
     xf_target = [L1_x, 0, 0, 0, 0, 0]';
     
     % Initial costate guess
-    lambda0_guess = [-0.1; -0.1; -0.1; -1.0; -1.0; -1.0; 0.1]; % Position, velocity, mass costates
+    v0 = x0(4:6);
+    lambda_v0 = -v0 / norm(v0);  % optimal thrust direction is anti-velocity
+    lambda0_guess = [0; 0; 0; lambda_v0; 0];  % position, velocity, mass
     
     % Continuation parameters
     T_max_values = linspace(T_max*2, T_max, 5); % Start with higher thrust
     
     % Solve TPBVP using continuation
     % Define continuation on mu from 0 to Earth-Moon value
-    mu_values = linspace(0, 0.012155, 15);  % You can use more steps if needed
+    mu_values = linspace(1e-6, 0.012155, 15);  % You can use more steps if needed
 
     % Initial guess
     lambda0_guess = [-0.01; -0.01; -0.01; -1; -1; -1; 0];
